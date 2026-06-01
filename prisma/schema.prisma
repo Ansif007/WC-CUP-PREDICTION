@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PARTICIPANT
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISABLED
+}
+
+enum MatchStage {
+  GROUP
+  ROUND_OF_16
+  QUARTERFINAL
+  SEMIFINAL
+  FINAL
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+}
+
+enum PredictionOutcome {
+  HOME_WIN
+  DRAW
+  AWAY_WIN
+}
+
+model User {
+  id                 String           @id @default(cuid())
+  employeeId         String           @unique
+  fullName           String
+  displayName        String           @unique
+  pinHash            String
+  role               Role             @default(PARTICIPANT)
+  status             UserStatus       @default(PENDING)
+  departmentId       String
+  department         Department       @relation(fields: [departmentId], references: [id])
+  predictions        Prediction[]
+  notifications      Notification[]
+  scoringHistory     ScoringHistory[]
+  auditLogs          AuditLog[]       @relation("AuditActor")
+  approvedById       String?
+  approvedBy         User?            @relation("UserApprover", fields: [approvedById], references: [id])
+  approvedUsers      User[]           @relation("UserApprover")
+  currentStreak      Int              @default(0)
+  longestStreak      Int              @default(0)
+  totalPoints        Int              @default(0)
+  exactScoreHits     Int              @default(0)
+  scorerHits         Int              @default(0)
+  winnerHits         Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  accounts           Account[]
+  sessions           Session[]
+}
+
+model Department {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  code          String   @unique
+  users         User[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Team {
+  id            String      @id @default(cuid())
+  externalId    String?     @unique
+  name          String
+  code          String      @unique
+  flagUrl       String?
+  homeMatches   Match[]     @relation("HomeTeam")
+  awayMatches   Match[]     @relation("AwayTeam")
+  players       Player[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model Player {
+  id            String        @id @default(cuid())
+  externalId    String?       @unique
+  name          String
+  teamId        String
+  team          Team          @relation(fields: [teamId], references: [id])
+  predictions   Prediction[]  @relation("PredictedScorer")
+  goals         GoalScorer[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Match {
+  id                String           @id @default(cuid())
+  externalId        String?          @unique
+  homeTeamId        String
+  awayTeamId        String
+  homeTeam          Team             @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam          Team             @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  stadium           String?
+  stage             MatchStage
+  kickoffAt         DateTime
+  lockAt            DateTime
+  status            MatchStatus      @default(SCHEDULED)
+  matchDay          Int
+  predictions       Prediction[]
+  result            MatchResult?
+  scoringHistory    ScoringHistory[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+}
+
+model Prediction {
+  id                  String              @id @default(cuid())
+  userId              String
+  matchId             String
+  predictedOutcome    PredictionOutcome
+  predictedHomeScore  Int
+  predictedAwayScore  Int
+  predictedScorerId   String?
+  predictedScorer     Player?             @relation("PredictedScorer", fields: [predictedScorerId], references: [id])
+  isLocked            Boolean             @default(false)
+  pointsAwarded       Int                 @default(0)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  user                User                @relation(fields: [userId], references: [id])
+  match               Match               @relation(fields: [matchId], references: [id])
+
+  @@unique([userId, matchId])
+}
+
+model MatchResult {
+  id                 String        @id @default(cuid())
+  matchId            String        @unique
+  homeScore          Int
+  awayScore          Int
+  winner             PredictionOutcome
+  isOverride         Boolean       @default(false)
+  updatedById        String?
+  goalScorers        GoalScorer[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  match              Match         @relation(fields: [matchId], references: [id])
+}
+
+model GoalScorer {
+  id              String       @id @default(cuid())
+  matchResultId   String
+  playerId        String
+  minute          Int?
+  createdAt       DateTime     @default(now())
+  matchResult     MatchResult  @relation(fields: [matchResultId], references: [id])
+  player          Player       @relation(fields: [playerId], references: [id])
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  message     String
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  action      String
+  entityType  String
+  entityId    String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  actor       User?    @relation("AuditActor", fields: [actorId], references: [id])
+}
+
+model ScoringHistory {
+  id             String   @id @default(cuid())
+  userId         String
+  matchId        String
+  predictionId   String?
+  winnerPoints   Int      @default(0)
+  differencePts  Int      @default(0)
+  exactScorePts  Int      @default(0)
+  scorerPoints   Int      @default(0)
+  multiplier     Float    @default(1)
+  totalPoints    Int      @default(0)
+  createdAt      DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id])
+  match          Match    @relation(fields: [matchId], references: [id])
+}
+
+model LeaderboardSnapshot {
+  id             String   @id @default(cuid())
+  scope          String
+  scopeValue     String?
+  payload        Json
+  createdAt      DateTime @default(now())
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

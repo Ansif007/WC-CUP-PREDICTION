@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 216 52% 6%;
+  --foreground: 210 40% 98%;
+  --card: 215 44% 10%;
+  --primary: 142 72% 45%;
+  --accent: 45 96% 58%;
+  --muted: 217 33% 17%;
+  --border: 217 33% 20%;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  background:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px),
+    radial-gradient(circle at 18% 0%, rgba(52,211,153,0.22), transparent 32%),
+    radial-gradient(circle at 95% 12%, rgba(250,204,21,0.12), transparent 28%),
+    linear-gradient(180deg, #071019 0%, #05070d 58%, #030409 100%);
+  background-size: 44px 44px, 44px 44px, auto, auto, auto;
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(52, 211, 153, 0.32);
+}
+
+.app-card {
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(16px);
+}
+
+.app-panel {
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(11, 20, 32, 0.88);
+}
